@@ -246,5 +246,5 @@ def sample(rowptr: Tensor, col: Tensor, rowcount: Tensor, subset: Tensor,
     rand = rand.to(torch.long) + rowptr[subset].view(-1, 1)
 
     col = col[rand]
-    col[(subset >= dummy_idx) | (rowcount[subset] == 0)] = dummy_idx
+    #col[(subset >= dummy_idx) | (rowcount[subset] == 0)] = dummy_idx
     return col
