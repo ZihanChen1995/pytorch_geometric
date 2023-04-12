@@ -1,11 +1,11 @@
 from typing import Dict, List, Optional, Tuple
-from torch_geometric.typing import NodeType, EdgeType, OptTensor
 
 import torch
 from torch import Tensor
 from torch.nn import Embedding
 from torch.utils.data import DataLoader
-from torch_sparse import SparseTensor
+
+from torch_geometric.typing import EdgeType, NodeType, OptTensor, SparseTensor
 
 EPS = 1e-15
 
@@ -23,10 +23,10 @@ class MetaPath2Vec(torch.nn.Module):
         <https://github.com/pyg-team/pytorch_geometric/blob/master/examples/
         hetero/metapath2vec.py>`_.
     Args:
-        edge_index_dict (Dict[Tuple[str, str, str], Tensor]): Dictionary
+        edge_index_dict (Dict[Tuple[str, str, str], torch.Tensor]): Dictionary
             holding edge indices for each
-            :obj:`(src_node_type, rel_type, dst_node_type)` present in the
-            heterogeneous graph.
+            :obj:`(src_node_type, rel_type, dst_node_type)` edge type present
+            in the heterogeneous graph.
         embedding_dim (int): The size of each embedding vector.
         metapath (List[Tuple[str, str, str]]): The metapath described as a list
             of :obj:`(src_node_type, rel_type, dst_node_type)` tuples.
@@ -115,13 +115,14 @@ class MetaPath2Vec(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
+        r"""Resets all learnable parameters of the module."""
         self.embedding.reset_parameters()
 
     def forward(self, node_type: str, batch: OptTensor = None) -> Tensor:
         r"""Returns the embeddings for the nodes in :obj:`batch` of type
         :obj:`node_type`."""
         emb = self.embedding.weight[self.start[node_type]:self.end[node_type]]
-        return emb if batch is None else emb[batch]
+        return emb if batch is None else emb.index_select(0, batch)
 
     def loader(self, **kwargs):
         r"""Returns the data loader that creates both positive and negative
@@ -176,7 +177,8 @@ class MetaPath2Vec(torch.nn.Module):
         return torch.cat(walks, dim=0)
 
     def _sample(self, batch: List[int]) -> Tuple[Tensor, Tensor]:
-        batch = torch.tensor(batch, dtype=torch.long)
+        if not isinstance(batch, Tensor):
+            batch = torch.tensor(batch, dtype=torch.long)
         return self._pos_sample(batch), self._neg_sample(batch)
 
     def loss(self, pos_rw: Tensor, neg_rw: Tensor) -> Tensor:
@@ -207,7 +209,7 @@ class MetaPath2Vec(torch.nn.Module):
         return pos_loss + neg_loss
 
     def test(self, train_z: Tensor, train_y: Tensor, test_z: Tensor,
-             test_y: Tensor, solver: str = 'lbfgs', multi_class: str = 'auto',
+             test_y: Tensor, solver: str = "lbfgs", multi_class: str = "auto",
              *args, **kwargs) -> float:
         r"""Evaluates latent space quality via a logistic regression downstream
         task."""
